@@ -1,0 +1,86 @@
+<?php
+/**
+* @file
+* this module check the library field and copy that new to the specific
+ * database.
+ *
+ * this module use the variable table with preview inicialized with
+ * 'php -r "print json_encode(array('libraries defined in settngs'));"
+ * | drush vset --format=json libraries_list -'
+ */
+
+/**
+ * Implements hook_help().
+ */
+function multinews_help($path, $arg) {
+  switch ($path) {
+    case 'admin/help#multinews':
+      return '<p>' . t('This module permits to duplicate a note to another 
+      database.') . '</p>';
+  }
+}
+
+/**
+ * Implements hook_menu().
+ */
+function multinews_menu() {
+  $items['admin/config/content/multinews'] = array(
+    'title' => 'Multinews settings',
+    'description' => 'Settings for module multinews',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('multinews_admin_settings'),
+    'access callback' => 'user_access',
+    'access arguments' => array('administer site configuration'),
+    'type' => MENU_NORMAL_ITEM,
+    'file' => 'multinews.admin.inc'
+  );
+  return $items;
+}
+
+/**
+ * Implements hook_form_BASE_FORM_ID_alter().
+ */
+function multinews_form_node_form_alter(&$form, &$form_state) {
+
+  $multinews_active[] = NULL;
+  $content_type = $form['#node']->type;
+  $multinews_all = variable_get('multinews_node_types');
+  $libraries_list = variable_get('libraries_list');
+  foreach ($multinews_all as $mn_type){
+    if($mn_type != NULL ){
+      $multinews_active[] = $mn_type;
+    }
+  }
+  if(in_array($content_type,$multinews_active)) {
+    $form['sites'] = array(
+      '#type' => 'fieldset',
+      '#title' => t('Clone settings'),
+      '#collapsible' => TRUE,
+      '#group' => 'additional_settings',
+    );
+    $form['sites']['libraries'] = array(
+      '#type' => 'checkboxes',
+      '#title' => t('Libraries'),
+      '#options' => $libraries_list,
+      '#description' => t('libraries to copy these content'),
+    );
+  }
+}
+
+/**
+ * Implements hook_node_insert().
+ */
+function multinews_node_insert($node) {
+  /*
+   * todo
+   */
+}
+
+/**
+ * Implements hook_node_update().
+ */
+function multinews_node_update($node) {
+  /*
+   * todo
+   */
+}

@@ -1,0 +1,7 @@
+name = Multinews
+description = Clone the specific new to others databases.
+core = 7.x
+package = BUS (Módulos Propios)
+files[] = multinews.module
+files[] = multinews.admin.inc
+configure = admin/config/content/multinews
