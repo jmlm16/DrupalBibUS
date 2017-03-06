@@ -1,0 +1,63 @@
+<?php
+/**
+ * @file
+ * A description of what your module does.
+ */
+
+/**
+ * Implements hook_block_info().
+ */
+function icasus_block_info() {
+  $blocks['icasus'] = array(
+    'info' => t('Icasus data'),
+    'cache' => DRUPAL_NO_CACHE,
+  );
+  return $blocks;
+
+}
+
+/**
+ * Implements hook_block_configure().
+ */
+function icasus_block_configure($delta = '') {
+  $form = array();
+
+  switch ($delta) {
+    case'icasus':
+      $form['icasus_url'] = array(
+        '#type' => 'textfield',
+        '#title' => t('URL Icasus'),
+        '#description' => t('url for request'),
+        '#default_value' => variable_get('block_icasus_url'),
+      );
+      break;
+  }
+  return $form;
+}
+
+/**
+ * Implements hook_block_save().
+ */
+function icasus_block_save($delta = '', $edit = array()) {
+  switch ($delta) {
+    case 'icasus':
+      variable_set('block_icasus_url', $edit['icasus_url']);
+      variable_set('icasus_data_num_planes','');
+      variable_set('icasus_data_num_procesos','');
+      variable_set('icasus_data_num_indicadores','');
+      variable_set('icasus_data_num_cuadros','');
+      variable_set('icasus_data_unidad','');
+      break;
+  }
+}
+
+/**
+ * Implements hook_block_view().
+ */
+function icasus_block_view($delta = '') {
+  $block = array();
+  $block['subject'] = t('Icasus data');
+  $block['content'] = t('<p>&nbsp;</p><p>&nbsp;</p><div class="rtecenter"><div style="display:inline-block; margin:10px;"><a href="https://icasus3.us.es/index.php?page=plan_listar&amp;id_entidad=14" style="color:#404040;" target="_blank"><i aria-hidden="true" class="fa fa-book fa-4x">' . variable_get("icasus_data_num_planes") . '</i><br/><strong>Planes Estratégicos</strong></a></div><div style="display:inline-block; margin:10px;"><a href="https://icasus3.us.es/index.php?page=proceso_listar&amp;id_entidad=14" style="color:#404040;" target="_blank"><i aria-hidden="true" class="fa fa-cogs  fa-4x">' . variable_get('icasus_data_num_procesos') . '</i><br /><strong>Procesos</strong></a></div><div style="display:inline-block; margin:10px;"><a href="https://icasus3.us.es/index.php?page=indicador_listar&amp;id_entidad=14" style="color:#404040;" target="_blank"><i aria-hidden="true" class="fa fa-tachometer fa-4x">' . variable_get('icasus_data_num_indicadores') . '</i><br /><strong>Indicadores/Datos</strong></a></div><div style="display:inline-block; margin:10px;"><a href="https://icasus3.us.es/index.php?page=cuadro_listar&amp;id_entidad=14" style="color:#404040;" target="_blank"><i aria-hidden="true" class="fa fa-th fa-4x">' . variable_get('icasus_data_num_cuadros') . '</i><br /><strong>Cuadros de mando</strong></a></div></div>');
+  return $block;
+}
+
