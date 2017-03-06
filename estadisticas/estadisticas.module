@@ -1,0 +1,260 @@
+<?php
+/**
+ * @file
+ * A description of what your module does.
+ */
+
+/**
+ * Implements hook_block_info().
+ */
+function estadisticas_block_info() {
+  $blocks['estadisticas'] = array(
+    'info' => t('Muestra las estadisticas de las diferentes bibliotecas'),
+    'cache' => DRUPAL_NO_CACHE,
+  );
+  return $blocks;
+}
+
+/**
+ * Implements hook_block_view().
+ * @param string $delta
+ * @return array
+ */
+function estadisticas_block_view($delta = '') {
+
+  $block = array();
+
+  switch ($delta) {
+    case 'estadisticas':
+      $block['subject'] = t('Estadisticas');
+      $block['content'] = drupal_get_form('form_estadisticas_form');
+  }
+
+  return $block;
+}
+
+function form_estadisticas_form($form, &$form_state) {
+
+  $form['date'] = array(
+    '#title' => t('Fecha Inicio'),
+    '#type' => 'date_popup',
+    '#date_label_position' => 'none',
+    '#date_format' => 'j/m/Y',
+    '#required' => TRUE
+  );
+
+  $form['date2'] = array(
+    '#title' => t('Fecha Fin'),
+    '#type' => 'date_popup',
+    '#date_label_position' => 'none',
+    '#date_format' => 'j/m/Y',
+    '#element_validate' => array('_date_size_validate'),
+    '#required' => TRUE
+  );
+
+  /**
+   * Declaramos el submit de tipo 'boton' para poder usar ajax y validar los
+   * campos necesarios dentro de la función asincrona.
+   */
+  $form['submit'] = array(
+    '#type' => 'button',
+    '#value' => t('View'),
+    '#ajax' => array(
+      'wrapper' => 'replace_item_div',
+      'callback' => 'form_estadisticas_form_ajax',
+    ),
+  );
+
+  /*
+   * Añadimos un elemento de tipo 'item' para sustituir por la respuesta de
+   * la consulta
+   */
+  $form['replace_text'] = array(
+    '#type' => 'item',
+    '#title' => t(" "),
+    '#prefix' => '<div id="replace_item_div">',
+    '#suffix' => '</div>',
+  );
+
+  return $form;
+}
+
+function form_estadisticas_form_ajax(&$form, &$form_state) {
+
+  /*
+   * Al usar ajax, validamos las fechas en la función asincrona.
+   * En el caso que el formulario no sea correcto, no realizará la consulta.
+   */
+  if ($form_state['values']['date2'] < $form_state['values']['date']) {
+    return t('<div id="replace_item_div" style="margin:5px; background-color: 
+    lightcoral; 
+    border: 1px solid red; padding: 3px; text-align: center;"> 
+    Error: La fecha fin no 
+    puede ser anterior a
+     la fecha inicio </div>');
+
+  }
+  else {
+
+    /**
+     * Guardamos las fechas solicitadas en el formulario en el formato en el
+     * cual trabaja la base de datos. 'año-mes-dia Hora:minuto:segundo'
+     */
+    $fecha_inicio =
+      date_format(new DateTime($form_state['values']['date']), 'Y-m-d H:i:s');
+
+    $fecha_fin =
+      date_format(new DateTime($form_state['values']['date2']), 'Y-m-d H:i:s');
+
+    /*
+     * Listado de bibliotecas, mantienen el orden del menu del portal y de la
+     * lista de bibliotecas del campo autoria en el tipo de contenido noticia.
+     */
+    $bibliotecas = array(
+      'machado',
+      'arquitectura',
+      'bellasartes',
+      'salud',
+      'comunicacion',
+      'ulloa',
+      'derechoytrabajo',
+      'economicas',
+      'educacion',
+      'psicologia',
+      'humanidades',
+      'informatica',
+      'ingenieros',
+      'agricola',
+      'matematicas',
+      'politecnica',
+      'turismo'
+    );
+
+    $type = 'noticias';
+    $status = 1; //indica que el contenido esta publicado
+    $contador = array();
+    $salida = '';
+    $autoria = 1;
+
+    /*
+     * Consultamos la bd en 2 pasos. Primero consultamos todos las noticias
+     * existentes entre las fechas y posteriormente se consulta de esas
+     * noticias las pertenecientes a la biblioteca en cuestión.
+     */
+    $result = db_select('node', 'n');
+    $result->join('field_data_field_fecha', 'f', 'n.nid = f.entity_id');
+    $result->fields('n', array('title'))
+      ->condition('n.status', $status, '=')
+      ->condition('n.type', $type, '=')
+      ->condition('f.field_fecha_value', $fecha_inicio, '>=')
+      ->condition('f.field_fecha_value', $fecha_fin, '<=');
+
+    $todos = $result->execute();
+
+    $contador['general'] = $todos->rowCount();
+
+    $consultasegunda = db_select('node', 'n');
+    $consultasegunda->join('field_data_field_fecha', 'f',
+      'n.nid = f.entity_id');
+    $consultasegunda->join('field_data_field_autoria', 'a',
+      'n.nid = a.entity_id');
+
+    $consultasegunda->fields('n', array('title'))
+      ->condition('n.status', $status, '=')
+      ->condition('n.type', $type, '=')
+      ->condition('f.field_fecha_value', $fecha_inicio, '>=')
+      ->condition('f.field_fecha_value', $fecha_fin, '<=')
+      ->condition('a.field_autoria_value', $autoria, '=');
+    $todos = $consultasegunda->execute();
+    $propios = $todos->rowCount();
+    $salida = $salida . ' <br> Biblioteca general -> ' .
+      $contador['general'] . ', (' . $propios . ') propios';
+
+    /*
+     * Se repite el proceso por cada una de las bibliotecas, cambiando
+     * mediante db_set_active el prefijo utilizado en las tablas.
+     */
+    foreach ($bibliotecas as $biblioteca) {
+      db_set_active($biblioteca);
+
+      $result = db_select('node', 'n');
+      $result->join('field_data_field_fecha', 'f', 'n.nid = f.entity_id');
+      $result->fields('n', array('title'))
+        ->condition('n.status', $status, '=')
+        ->condition('n.type', $type, '=')
+        ->condition('f.field_fecha_value', $fecha_inicio, '>=')
+        ->condition('f.field_fecha_value', $fecha_fin, '<=');
+      $result = $result->execute();
+      $contador[$biblioteca] = $result->rowCount();
+
+      /*
+       * Mediante el aumento de la variable autoria y estar identificadas
+       * en la lista de bibliotecas del campo autoria mediante el mismo
+       * orden, controlamos las noticias propias.
+       */
+      $autoria++;
+
+      $consultatercera = db_select('node', 'n');
+      $consultatercera->join('field_data_field_fecha', 'f',
+        'n.nid = f.entity_id');
+      $consultatercera->join('field_data_field_autoria', 'a',
+        'n.nid = a.entity_id');
+
+      $consultatercera->fields('n', array('title'))
+        ->condition('n.status', $status, '=')
+        ->condition('n.type', $type, '=')
+        ->condition('f.field_fecha_value', $fecha_inicio, '>=')
+        ->condition('f.field_fecha_value', $fecha_fin, '<=')
+        ->condition('a.field_autoria_value', $autoria, '=');
+      $todos = $consultatercera->execute();
+      $propios = $todos->rowCount();
+      $salida = $salida . ' <br>' . $biblioteca . ' -> ' .
+        $contador[$biblioteca]
+        . ', (' . $propios . ') propios';
+    }
+
+    /*
+     * volvemos a establecer por la base de datos por defecto.
+     */
+    db_set_active();
+
+    /**
+     * Damos formato final a la salida con el 'prefix' a reemplazar mediante
+     * la consulta asincrona, de este modo una nueva consulta sobreescribirá
+     * la salida anterior.
+     */
+    $respuesta = '<div id="replace_item_div"> <br> Noticias publicada en
+     cada 
+  biblioteca entre las 
+          fechas ' . formato_cadena($fecha_inicio) . ' y ' .
+      formato_cadena($fecha_fin) . $salida . '</div>';
+    return t($respuesta);
+  }
+
+}
+
+
+function formato_cadena($fecha) {
+
+  /*
+   * Reformateamos la cadena para mostrarla en un formato más amigable para
+   * el usuario
+   */
+  $formateada = substr($fecha, 8, 2) .
+    substr($fecha, 4, 4) . substr($fecha, 0, 4);
+
+  return $formateada;
+}
+
+function _date_size_validate($element, &$form_state) {
+
+  /**
+   * Se valida nuevamente dentro del mismo campo de fecha de fin del formulario
+   * su valor respecto a la fecha de inicio
+   */
+  if ($form_state['values']['date2'] < $form_state['values']['date']) {
+    form_error($element,
+      t('La fecha fin no puede ser anterior a la fecha inicio'));
+
+  }
+}

@@ -1,0 +1,5 @@
+name = Estadisticas
+description = muestra las estadisticas unificadas de la web.
+core = 7.x
+files[] = estadisticas.module
+package = Custom Module
