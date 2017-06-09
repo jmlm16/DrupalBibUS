@@ -1,0 +1,88 @@
+<?php
+/**
+ * @file
+ * A description of what your module does.
+ */
+
+/**
+ * Implements hook_help().
+ */
+function rolgroup_help($path, $arg) {
+  switch ($path) {
+    case 'admin/help#rolgroup':
+      return '<p>' . t('This module allows assign role to a users determinate 
+      by taxonomy') . '</p>';
+  }
+}
+
+/**
+ * Implements hook_menu().
+ */
+function rolgroup_menu() {
+  $items['admin/config/people/rolgroup'] = array(
+    'title' => 'Rolgroup settings',
+    'description' => 'Settings for module rolgroup',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('rolgroup_admin_settings'),
+    'access callback' => 'user_access',
+    'access arguments' => array('administer site configuration'),
+    'type' => MENU_NORMAL_ITEM,
+    'file' => 'rolgroup.admin.inc'
+  );
+  return $items;
+}
+
+/**
+ * Implements hook_taxonomy_term_insert().
+ */
+function rolgroup_taxonomy_term_insert($term) {
+  $tid = _taxonomy_get_tid_from_term($term);
+  $result = db_query('SELECT vid FROM {taxonomy_term_data} WHERE tid = :tid',
+    array(':tid' => $tid))->fetchField();
+  $data = db_query('SELECT vid FROM {taxonomy_vocabulary} WHERE name = :name',
+    array(':name' => variable_get('rolgroup_taxonomy_types')))->fetchField();
+  if ($result == $data) {
+    $role = new stdClass();
+    $role->name = $term->name;
+    user_role_save($role);
+
+
+    $users = $term->field_usuario['und'];
+
+    foreach ($users as $user) {
+      user_multiple_role_edit(array($user['target_id']), 'add_role', $role->rid);
+
+    }
+
+  }
+}
+
+/**
+ * Implements hook_taxonomy_term_update().
+ */
+
+/**
+ * Implements hook_taxonomy_term_presave().
+ */
+function rolgroup_taxonomy_term_update($term) {
+  $roleid = db_query('select rid from {role} where name = :name', array
+  (
+    ':name' => $term->name
+  ))->fetchField();
+
+  $orig = $term->original->field_usuario['und'];
+  $actual = $term->field_usuario['und'];
+  foreach ($orig as $identifier) {
+    if (!in_array($identifier, $actual)) {
+      user_multiple_role_edit(array($identifier['target_id']), 'remove_role',
+        $roleid);
+    }
+  }
+
+  foreach ($actual as $item) {
+    if ($orig == null or !in_array($item, $orig)) {
+      user_multiple_role_edit(array($item['target_id']), 'add_role', $roleid);
+    }
+  }
+
+}

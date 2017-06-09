@@ -1,0 +1,7 @@
+name = Rolgroup
+description = Create a role with new group name.
+core = 7.x
+package = BUS (Módulos propios)
+files[] =  rolgroup.module
+files[] =  rolgroup.admin.inc
+configure = admin/config/people/rolgroup/
